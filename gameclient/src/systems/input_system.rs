@@ -2,7 +2,7 @@ use std::borrow::BorrowMut;
 
 use bevy::{input::mouse::{MouseButtonInput, MouseMotion, mouse_button_input_system}, math::vec3, prelude::*, render::camera::Camera, window::CursorMoved};
 
-use bevy_rapier3d::{physics::{ColliderHandleComponent, EntityMaps, EventQueue, RapierPhysicsPlugin, RigidBodyHandleComponent}, rapier::geometry::{ColliderHandle, ColliderSet}};
+use bevy_rapier3d::{na::Vector3, physics::{ColliderHandleComponent, EntityMaps, EventQueue, RapierPhysicsPlugin, RigidBodyHandleComponent}, rapier::geometry::{ColliderHandle, ColliderSet}};
 use bevy_rapier3d::rapier::dynamics::{RigidBody, RigidBodyBuilder, RigidBodyHandle, RigidBodySet};
 use bevy_rapier3d::rapier::geometry::ColliderBuilder;
 
@@ -155,7 +155,7 @@ pub fn mouse_click_system(
                 transform: Transform::from_translation(pos),
                 ..Default::default()
             })
-            .with(RigidBodyBuilder::new_dynamic().translation(pos.x, pos.y, pos.z).linvel(forward.x, forward.y, forward.z))
+            .with(RigidBodyBuilder::new_dynamic().translation(pos.x, pos.y, pos.z).linvel(forward.x, forward.y, forward.z).angvel(Vector3::new(3.0, 2.0, 1.0)))
             .with(ColliderBuilder::cuboid(1.0, 1.0, 1.0));
         }
     }
