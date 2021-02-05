@@ -1,0 +1,5 @@
+all actions will be physically simulated. 
+
+    * firing a gun will create recoil that can push the players if friction of surface they are on is too low or in the air
+    * some slopes in the map will be low friction to slide down and gain high velocity
+    * krunker style slide and hop will be a thing but you cannot go past the speed limit with it without downward slopes
