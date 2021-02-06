@@ -36,7 +36,7 @@ fn setup(
     
     
     let material_handle = materials.add(StandardMaterial {
-        albedo: Color::rgb(0.8, 0.7, 0.6),
+        albedo: Color::rgb(0.2, 0.8, 0.6),
         ..Default::default()
     });
 
@@ -45,7 +45,7 @@ fn setup(
 
     let floor_width = 50.0;
 
-    let spawn = Vec3::new(0.0, 100.0, 0.0);
+    let spawn = Vec3::new(0.0, 10.0, 0.0);
 
     let player_spawn = Vec3::new(0.0, 2.5, 10.0);
 
@@ -69,8 +69,8 @@ fn setup(
             transform: Transform::from_matrix(Mat4::from_translation(spawn)),
             ..Default::default()
         })
-        .with(RigidBodyBuilder::new_dynamic().translation(spawn.x, spawn.y, spawn.z))
-        .with(ColliderBuilder::cuboid(2.0, 2.0, 2.0))
+        .with(RigidBodyBuilder::new_static().translation(spawn.x, spawn.y, spawn.z))
+        .with(ColliderBuilder::cuboid(2.0, 2.0, 2.0).density(30.0))
 
 
         .spawn(LightBundle {

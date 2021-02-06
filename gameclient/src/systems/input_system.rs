@@ -2,7 +2,7 @@ use std::borrow::BorrowMut;
 
 use bevy::{input::mouse::{MouseButtonInput, MouseMotion, mouse_button_input_system}, math::vec3, prelude::*, render::camera::Camera, window::CursorMoved};
 
-use bevy_rapier3d::{na::{Isometry, Translation3, Vector3}, physics::{ColliderHandleComponent, EntityMaps, EventQueue, RapierPhysicsPlugin, RigidBodyHandleComponent}, rapier::{crossbeam::thread, geometry::{ColliderHandle, ColliderSet, Shape, SharedShape}}};
+use bevy_rapier3d::{na::{Isometry, Translation3, Vector3}, physics::{ColliderHandleComponent, EntityMaps, EventQueue, RapierPhysicsPlugin, RigidBodyHandleComponent}, rapier::{crossbeam::thread, geometry::{ColliderHandle, ColliderSet, Shape, SharedShape}, parry::query::PointQuery}};
 use bevy_rapier3d::rapier::dynamics::{RigidBody, RigidBodyBuilder, RigidBodyHandle, RigidBodySet};
 use bevy_rapier3d::rapier::geometry::ColliderBuilder;
 use na::{Point3, Rotation3, UnitQuaternion};
@@ -20,9 +20,6 @@ pub struct FPSCamera {
     gravity: f32,
 }
 
-pub struct FPSCollider {
-    handle: Option<ColliderHandle>
-}
 
 impl Default for FPSCamera {
     fn default() -> FPSCamera {
@@ -33,7 +30,7 @@ impl Default for FPSCamera {
             enable_mouse: true,
             enable_keyboard: true,
             target_velocity: 4.0,
-            gravity: 0.0
+            gravity: -9.8
         }
     }
 }
@@ -43,7 +40,6 @@ impl Plugin for FPSCameraPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app
         .add_resource(MouseState::default())
-        .add_resource(FPSCollider {handle: None})
         .add_startup_system(init_camera.system())
         .add_system(player_dynamics.system())
         .add_system(toggle_cursor.system())
@@ -55,33 +51,28 @@ impl Plugin for FPSCameraPlugin {
 
 pub fn init_camera(
     commands: &mut Commands,
-    mut rigidbody_set: ResMut<RigidBodySet>,
-    mut collider_set: ResMut<ColliderSet>
 ) {
 
     let player_spawn = Vec3::new(0.0, 2.5, 10.0);
 
-    let collider = ColliderBuilder::capsule_y(1.0, 0.5);
+    let collider = ColliderBuilder::capsule_y(3.0, 1.5).density(20f32).sensor(true);
     let rigid = RigidBodyBuilder::new_dynamic()
         .translation(player_spawn.x, player_spawn.y, player_spawn.z);
 
-
-
-    let entity = commands
-        .spawn(Camera3dBundle {
+    let mut cam = Camera3dBundle {
         transform: Transform::from_matrix(Mat4::from_translation(player_spawn))
             .looking_at(Vec3::default(), Vec3::unit_y()),
             ..Default::default()
-        })
+    };
+    cam.perspective_projection.fov = -105.0;
+
+
+
+    commands
+        .spawn(cam)
         .with(FPSCamera::default())
         .with(rigid)
-        .with(collider)
-        .current_entity()
-        .unwrap();
-
-    
-
-    println!("FPSCamera: {:?}", entity);
+        .with(collider);
 
 }
 
@@ -93,9 +84,11 @@ pub struct MouseState {
 }
 
 pub fn player_dynamics(
-    mut query:                  Query<(&mut FPSCamera, &mut Transform, &RigidBodyHandleComponent)>,
+    mut query:                  Query<(&mut FPSCamera, &mut Transform, &RigidBodyHandleComponent, &ColliderHandleComponent)>,
     mut bodySet:                ResMut<RigidBodySet>,
     mut state:                  ResMut<MouseState>,
+    events:                     Res<EventQueue>,
+    colliders:                  Res<ColliderSet>,
     mouse_motion_events:        Res<Events<MouseMotion>>,
     input:                      Res<Input<KeyCode>>,
     time:                       Res<Time>,
@@ -103,26 +96,68 @@ pub fn player_dynamics(
 
     use na::{Isometry3};
 
-    let (mut camera, mut transform, handle) = query.iter_mut().nth(0).unwrap();
-    let mut body = bodySet.get_mut(handle.handle()).unwrap();  
+    let (mut camera, mut transform, r_handle, c_handle) = query.iter_mut().nth(0).unwrap();
+    let mut body = bodySet.get_mut(r_handle.handle()).unwrap();  
     let position = body.position();
     let dt = time.delta_seconds();
 
     let rotation = pitch_yaw(&mut camera, &mut state, &mouse_motion_events, dt)
         .map(|(pitch, yaw)| UnitQuaternion::from_euler_angles( -yaw, pitch, 0.0));
 
-    let translation = velocity(&mut camera, &transform, &input, dt).map(|v|  {
-        Translation3::new(v.x + position.translation.x, v.y + position.translation.y + (camera.gravity * dt), v.z + position.translation.z)
+    let (translation, velocity) = velocity(&mut camera,  &transform, &input, dt).map(|v|  {
+
+        while let Ok(intersection_event) = events.intersection_events.pop() {
+            
+            let (player, other) = {
+                let c1 = colliders.get(intersection_event.collider1).unwrap();
+                let c2 = colliders.get(intersection_event.collider2).unwrap();
+
+                if c_handle.handle() == intersection_event.collider1 {
+                    (c1, c2)
+                } else if c_handle.handle() == intersection_event.collider2 {
+                    (c2, c1)
+                } else {
+                    continue;
+                }
+
+                
+            };
+
+            let (point, feature) = other.shape().project_point_and_get_feature(other.position(), &(player.position().translation * Point3::new(0.0,0.0,0.0)));
+            let norm = other.shape().feature_normal_at_point(feature, &point.point);
+
+            println!("{:?}", norm);
+
+
+
+
+    
+        }
+
+        //Translation3::new(v.x + position.translation.x, v.y + position.translation.y + (camera.gravity * dt), v.z + position.translation.z)
+        (Translation3::new(v.x + position.translation.x, v.y + position.translation.y, v.z + position.translation.z),
+        Vector3::new())
+        //Vector3::new(v.x , v.y + (camera.gravity * dt * 50.0), v.z )
     });
-
-
 
     body.set_position(
         Isometry3 {
                 translation: translation.unwrap_or(body.position().translation),
                 rotation: rotation.unwrap_or(body.position().rotation)
-        }   
-    , true);
+    }, true);
+
+    body.set_linvel(Vector3::new(), true);
+
+    // body.set_linvel(translation.unwrap_or(*body.linvel() + *body.linvel()), true)
+
+    // body.set_position(
+    //     Isometry3 {
+    //             translation: body.position().translation,
+    //             rotation: rotation.unwrap_or(body.position().rotation)
+    //     }   
+    // , true);
+ 
+    // body.set_linvel(translation.unwrap_or(*body.linvel() + *body.linvel()), true)
 
 }
 
@@ -166,10 +201,14 @@ pub fn velocity(
         camera.velocity + delta_friction
     };
 
+    if input.pressed(KeyCode::Space) {
+        camera.velocity += Vec3::unit_y() * 0.10;
+    }
+
     if camera.velocity.length() > camera.target_velocity {
         camera.velocity = camera.velocity.normalize() * camera.target_velocity;
     }
-    let v = camera.velocity;
+    let v = camera.velocity * 30f32;
 
     Some(Translation3::new(v.x, v.y, v.z))
 }
@@ -223,7 +262,7 @@ pub fn mouse_click_system(
     for event in state.mouse_button_event_reader.iter(&mouse_click_events) {
         if event.state.is_pressed() && event.button == MouseButton::Left {
             let forward: Vec3 = forward_vector(&transform.rotation) * 15.0;
-            let pos = transform.translation;
+            let pos = transform.translation + forward.normalize();
 
             use rand::Rng;
             let mut rng = rand::thread_rng();
