@@ -1,5 +1,5 @@
 use bevy::{prelude::*};
-use bevy_rapier3d::{rapier::dynamics::RigidBodyBuilder, rapier::geometry::{Collider, ColliderBuilder}};
+use bevy_rapier3d::{rapier::dynamics::RigidBodyBuilder, rapier::geometry::{Collider, ColliderBuilder}, render::RapierRenderPlugin};
 mod systems;
 use systems::{FPSCameraPlugin, FPSCamera, PhysicsSystemPlugin};
 
@@ -16,9 +16,10 @@ fn main() {
         })
         .add_resource(Msaa { samples: 8 } )
         .add_plugins(DefaultPlugins)
-        .add_plugin(FPSCameraPlugin)
         .add_plugin(PhysicsSystemPlugin)
         .add_startup_system(setup.system())
+        .add_plugin(FPSCameraPlugin)
+        .add_plugin(RapierRenderPlugin)
         .run();
 
     
@@ -46,22 +47,24 @@ fn setup(
 
     let spawn = Vec3::new(0.0, 100.0, 0.0);
 
+    let player_spawn = Vec3::new(0.0, 2.5, 10.0);
+
     // commands.spawn_scene(map_handle);
 
     commands
         .spawn(PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
-            transform: Transform::from_scale(Vec3::new(floor_width, 1.0, floor_width)),
+            transform: Transform::from_scale(Vec3::new(floor_width*2.0, 1.0, floor_width*2.0)),
             material: material_handle.clone(),
             ..Default::default()
         })
-        .with(RigidBodyBuilder::new_static().translation(0.0, -3.0, 0.0))
-        .with(ColliderBuilder::cuboid(floor_width, 1.0, floor_width))
+        .with(RigidBodyBuilder::new_static().translation(0.0, 0.0, 0.0))
+        .with(ColliderBuilder::cuboid(floor_width, 0.5, floor_width))
 
 
 
         .spawn(PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0})),
+            mesh: meshes.add(Mesh::from(shape::Cube { size: 4.0})),
             material: material_handle,
             transform: Transform::from_matrix(Mat4::from_translation(spawn)),
             ..Default::default()
@@ -73,12 +76,8 @@ fn setup(
         .spawn(LightBundle {
             transform: Transform::from_matrix(Mat4::from_translation(Vec3::new(4.0, 8.0, 4.0))),
             ..Default::default()
-        })
+        });
 
 
-        .spawn(Camera3dBundle {
-            transform: Transform::from_matrix(Mat4::from_translation(Vec3::new(0.0, 2.5, 10.0)))
-                .looking_at(Vec3::default(), Vec3::unit_y()),
-            ..Default::default()
-        }).with(FPSCamera::default());
+        
 }
