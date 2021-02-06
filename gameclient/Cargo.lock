@@ -1649,6 +1649,7 @@ dependencies = [
  "bevy_rapier3d",
  "na",
  "rand 0.8.3",
+ "rapier3d",
 ]
 
 [[package]]

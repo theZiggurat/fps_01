@@ -1,7 +1,15 @@
-use bevy_rapier3d::{physics::{EventQueue, ColliderHandleComponent, InteractionPairFilters, RapierPhysicsPlugin}, rapier::dynamics::RigidBodySet, rapier::geometry::{PairFilterContext, ContactPairFilter, SolverFlags}};
 use bevy::prelude::*;
+use bevy_rapier3d::physics::RapierPhysicsPlugin;
+// use bevy_rapier3d::{
+//     physics::EventQueue, 
+//     rapier::dynamics::RigidBodySet, 
+//     rapier::geometry::{
+//         PairFilterContext, 
+//         ContactPairFilter, 
+//         SolverFlags
+//     }
+// };
 
-use super::FPSCamera;
 
 
 pub struct PhysicsSystemPlugin;
@@ -9,45 +17,45 @@ pub struct PhysicsSystemPlugin;
 impl Plugin for PhysicsSystemPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app
-        .add_plugin(RapierPhysicsPlugin)
-        .add_system(display_events.system())
-        .add_startup_system(setup_physics.system());
+        .add_plugin(RapierPhysicsPlugin);
+        // .add_system(display_events.system());
+        // .add_startup_system(setup_physics.system());
         // .add_system(sync_physics.system());
         // .add_system(sync_player.system());
     }
 }
 
-struct CustomFilter;
-impl ContactPairFilter for CustomFilter {
-    fn filter_contact_pair(&self, context: &PairFilterContext) -> Option<SolverFlags> {
-        println!("here");
-        if (context.rigid_body1.is_static() && context.rigid_body2.is_kinematic()) || (context.rigid_body2.is_static() && context.rigid_body1.is_kinematic()) {
-            println!("here");
-        }
-        if !context.rigid_body1.is_static() && !context.rigid_body2.is_static() {
-            Some(SolverFlags::COMPUTE_IMPULSES)
-        } else {
-            None
-        }
-    }
-}
+// struct CustomFilter;
+// impl ContactPairFilter for CustomFilter {
+//     fn filter_contact_pair(&self, context: &PairFilterContext) -> Option<SolverFlags> {
+//         println!("here");
+//         if (context.rigid_body1.is_static() && context.rigid_body2.is_kinematic()) || (context.rigid_body2.is_static() && context.rigid_body1.is_kinematic()) {
+//             println!("here");
+//         }
+//         if !context.rigid_body1.is_static() && !context.rigid_body2.is_static() {
+//             Some(SolverFlags::COMPUTE_IMPULSES)
+//         } else {
+//             None
+//         }
+//     }
+// }
 
-fn setup_physics(commands: &mut Commands) {
-    commands
-        .insert_resource(InteractionPairFilters::new().contact_filter(CustomFilter));
-}
+// fn setup_physics(commands: &mut Commands) {
+//     // commands
+//     //     .insert_resource(InteractionPairFilters::new().contact_filter(CustomFilter));
+// }
 
-fn display_events(events: Res<EventQueue>) {
+// fn display_events(events: Res<EventQueue>) {
 
-    while let Ok(intersection_event) = events.intersection_events.pop() {
-        println!("Received intersection event: {:?}", intersection_event);
+//     // while let Ok(intersection_event) = events.intersection_events.pop() {
+//     //     println!("Received intersection event: {:?}", intersection_event);
 
-    }
+//     // }
 
-    while let Ok(contact_event) = events.contact_events.pop() {
-        println!("Received contact event: {:?}", contact_event);
-    }
-}
+//     // while let Ok(contact_event) = events.contact_events.pop() {
+//     //     println!("Received contact event: {:?}", contact_event);
+//     // }
+// }
 
 
 // pub fn sync_physics(
