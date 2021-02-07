@@ -17,7 +17,8 @@ use bevy_rapier3d::{
         }
     }
 };
-use rapier3d::math::Vector;
+use rapier3d::{geometry::Ball, math::Vector};
+use bevy_mod_picking::{PickSource, PickingPlugin};
 use na::UnitQuaternion;
 
 
@@ -27,6 +28,7 @@ pub struct FPSCameraPlugin;
 pub struct FPSCamera {
     yaw: f32,
     pitch: f32,
+    velocity: Vec3,
     enable_mouse: bool,
     enable_keyboard: bool,
     target_speed: f32,
@@ -40,11 +42,12 @@ impl Default for FPSCamera {
         FPSCamera {
             yaw: 0.0,
             pitch: 0.0,
+            velocity: Default::default(),
             enable_mouse: true,
             enable_keyboard: true,
             target_speed: 6.0,
-            acceleration: 1.0,
-            jump_power: 1.0,
+            acceleration: 4.0,
+            jump_power: 0.5,
         }
     }
 }
@@ -86,7 +89,8 @@ pub fn init_camera(
         .spawn(cam)
         .with(FPSCamera::default())
         .with(rigid)
-        .with(collider);
+        .with(collider)
+        .with(PickSource::default());
 
 }
 
@@ -133,11 +137,12 @@ pub fn player_dynamics(
     let combined = accel_from_player + current_velocity;
     let new_speed = combined.xyz().magnitude();
     
-    let combined = if new_speed > camera.target_speed {
+    let mut combined = if new_speed > camera.target_speed {
         combined.normalize() * current_speed
     } else {
         combined
     };
+    combined.y = current_velocity.y;
 
 
     // jump
@@ -149,6 +154,7 @@ pub fn player_dynamics(
     };
 
     body.set_linvel(combined, false);
+    camera.velocity = Vec3::new(combined.x, combined.y, combined.z);
 
     body.set_angvel(Vector3::new(0.0,0.0,0.0), false);
 
@@ -223,7 +229,11 @@ pub fn mouse_click_system(
     query: Query<(&FPSCamera, &Transform)>,
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
-    let (_, transform) = query.iter().nth(0).unwrap();
+    let (camera, transform) = query.iter().nth(0).unwrap();
+
+    if !camera.enable_mouse {
+        return;
+    }
 
     let material_handle = materials.add(StandardMaterial {
         albedo: Color::rgb(0.8, 0.7, 0.6),
@@ -238,23 +248,41 @@ pub fn mouse_click_system(
 
             use rand::Rng;
             let mut rng = rand::thread_rng();
-        
-            commands
+
+            if event.button == MouseButton::Left {
+                commands
                 .spawn(PbrBundle {
-                    mesh: meshes.add(Mesh::from(shape::Cube{size: 1.0})),
+                    mesh: meshes.add(Mesh::from(shape::Cube {size: 2.0})),
                     material: material_handle.clone(),
                     transform: Transform::from_translation(pos),
                     ..Default::default()
                 })
                 .with(RigidBodyBuilder::new_dynamic()
-                    .translation(pos.x, pos.y, pos.z)
-                    .linvel(forward.x, forward.y, forward.z)
+                    .translation(pos.x, pos.y , pos.z )
+                    .linvel(forward.x  + camera.velocity.x + camera.velocity.y, forward.y, forward.z + camera.velocity.z)
                     .angvel(Vector3::new(rng.gen() , rng.gen() , 1.0)))
-                .with(ColliderBuilder::cuboid(0.5, 0.5, 0.5)
+                .with(ColliderBuilder::cuboid(1.0 ,1.0, 1.0)
                     .density(rng.gen::<f32>() * 8.0)
-                    .sensor(false)
-            );
-        }
+                    .sensor(false));
+            } else if event.button == MouseButton::Right {
+                commands
+                .spawn(PbrBundle {
+                    mesh: meshes.add(Mesh::from(shape::Icosphere {radius: 1.0, ..Default::default()})),
+                    material: material_handle.clone(),
+                    transform: Transform::from_translation(pos),
+                    ..Default::default()
+                })
+                .with(RigidBodyBuilder::new_dynamic()
+                    .translation(pos.x, pos.y , pos.z )
+                    .linvel(forward.x  + camera.velocity.x + camera.velocity.y, forward.y, forward.z + camera.velocity.z)
+                    .angvel(Vector3::new(rng.gen() , rng.gen() , 1.0)))
+                .with(ColliderBuilder::ball(1.0)
+                    .density(rng.gen::<f32>() * 8.0)
+                    .sensor(false));
+            }
+        
+            
+        } 
     }
 }
 
